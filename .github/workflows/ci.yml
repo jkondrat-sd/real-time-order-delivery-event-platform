@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Minimize GITHUB_TOKEN permissions
+permissions:
+  contents: read
+
 env:
   JAVA_VERSION: '11'
   MAVEN_VERSION: '3.9.6'
@@ -14,6 +18,8 @@ jobs:
   lint-and-validate:
     name: Lint and Validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -52,6 +58,8 @@ jobs:
   build-flink-jobs:
     name: Build Flink Jobs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -87,6 +95,8 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [build-flink-jobs]
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -160,6 +170,9 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Required for uploading SARIF results
     
     steps:
       - name: Checkout code
@@ -184,6 +197,8 @@ jobs:
     name: Docker Compose Full Stack Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
