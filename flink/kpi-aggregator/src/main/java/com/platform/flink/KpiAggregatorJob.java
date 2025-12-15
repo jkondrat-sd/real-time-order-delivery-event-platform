@@ -66,26 +66,34 @@ public class KpiAggregatorJob {
         });
         
         // Convert JSON to Table and parse order events
-        // In production, this would parse JSON properly using Flink's JSON format
+        // NOTE: This is a simplified example for demonstration purposes.
+        // In production, you should:
+        // 1. Use Flink's JSON format with proper schema definition
+        // 2. Parse the JSON to extract order_id, timestamp, amount, etc.
+        // 3. Use event time from the order data, not CURRENT_TIMESTAMP
+        // 4. Implement proper error handling and dead-letter queue
         tableEnv.createTemporaryView("orders_raw", orderStream);
         
         // Create Iceberg table for KPI results if not exists
         createKpiTable(tableEnv);
         
         // Example aggregation query - compute hourly KPIs
-        // Note: This is a simplified example. In production, you'd parse JSON properly
+        // TODO: Implement proper JSON parsing and event time extraction
+        // The current query is commented out as it requires proper JSON format parsing
+        // Uncomment and implement the following after adding JSON deserializer:
+        /*
         String kpiQuery = 
             "INSERT INTO iceberg_catalog.default_db.order_kpis " +
             "SELECT " +
-            "  TUMBLE_START(TO_TIMESTAMP(CURRENT_TIMESTAMP), INTERVAL '1' HOUR) as window_start, " +
+            "  TUMBLE_START(event_time, INTERVAL '1' HOUR) as window_start, " +
             "  COUNT(*) as order_count, " +
-            "  CAST(0 AS DOUBLE) as total_revenue, " +
-            "  CAST(0 AS DOUBLE) as avg_order_value " +
-            "FROM orders_raw " +
-            "GROUP BY TUMBLE(TO_TIMESTAMP(CURRENT_TIMESTAMP), INTERVAL '1' HOUR)";
+            "  SUM(order_amount) as total_revenue, " +
+            "  AVG(order_amount) as avg_order_value " +
+            "FROM orders_parsed " +
+            "GROUP BY TUMBLE(event_time, INTERVAL '1' HOUR)";
         
-        // Execute the KPI aggregation (commented out as it needs proper JSON parsing)
-        // tableEnv.executeSql(kpiQuery);
+        tableEnv.executeSql(kpiQuery);
+        */
         
         LOG.info("Starting KPI Aggregator Job...");
         

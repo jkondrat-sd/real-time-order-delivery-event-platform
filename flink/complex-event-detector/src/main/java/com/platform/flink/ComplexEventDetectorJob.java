@@ -160,7 +160,12 @@ public class ComplexEventDetectorJob {
         // Create Iceberg tables for complex events
         createComplexEventTables(tableEnv);
         
-        // Print alerts (in production, these would be written to Iceberg)
+        // Print alerts for demonstration
+        // NOTE: In production, these should be written to Iceberg tables or sent to alerting systems
+        // TODO: Implement proper sinks to persist alerts:
+        // 1. Write to Iceberg tables using Table API
+        // 2. Send to alerting service (PagerDuty, Slack, etc.)
+        // 3. Publish to a separate Kafka topic for downstream consumption
         delayedDeliveryAlerts.print();
         failedDeliveryAlerts.print();
         

@@ -124,7 +124,16 @@ def publish_to_kafka(**context):
     """
     Publish validated data to Kafka topics
     
-    In production, this would use the KafkaProducer to send messages
+    NOTE: This is a simplified example for demonstration.
+    In production, implement actual Kafka producer:
+    from kafka import KafkaProducer
+    producer = KafkaProducer(
+        bootstrap_servers=['kafka:29092'],
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    for message in validated_data:
+        producer.send('order-events', value=message)
+    producer.flush()
     """
     task_instance = context['task_instance']
     validated_data = task_instance.xcom_pull(key='validated_data', task_ids='validate_transform_data')
@@ -135,16 +144,11 @@ def publish_to_kafka(**context):
     
     logging.info(f"Publishing {len(validated_data)} messages to Kafka")
     
-    # In production, use actual Kafka producer
-    # from kafka import KafkaProducer
-    # producer = KafkaProducer(
-    #     bootstrap_servers=['kafka:29092'],
-    #     value_serializer=lambda v: json.dumps(v).encode('utf-8')
-    # )
-    
+    # TODO: Implement actual Kafka producer when integrating with real Kafka cluster
+    # The code below simulates publishing for demonstration purposes
     published_count = 0
     for message in validated_data:
-        # producer.send('order-events', value=message)
+        # Simulated publish - replace with actual Kafka producer
         published_count += 1
         if published_count % 100 == 0:
             logging.info(f"Published {published_count} messages")

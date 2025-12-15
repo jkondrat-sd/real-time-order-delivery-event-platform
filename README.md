@@ -2,6 +2,13 @@
 
 An industry-grade, production-ready monorepo for a real-time order and delivery event processing platform. This platform demonstrates modern data engineering best practices with stream processing, data lakehouse architecture, and comprehensive observability.
 
+> **Note**: This is a scaffold/template project that provides the infrastructure and framework. The Flink jobs and Airflow DAGs contain example code that should be adapted for your specific use case. Key areas requiring implementation:
+> - JSON parsing and deserialization in Flink jobs
+> - Proper event time extraction and windowing
+> - Complete Iceberg sink implementations
+> - Actual Kafka producer in Airflow DAG
+> - Business-specific KPI calculations and CEP patterns
+
 ## 🏗️ Architecture Overview
 
 ```
