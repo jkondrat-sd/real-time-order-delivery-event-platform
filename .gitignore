@@ -205,3 +205,61 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Docker volumes and data
+docker-data/
+volumes/
+*.log
+
+# Flink
+flink/*/target/
+flink/*/.classpath
+flink/*/.project
+flink/*/.settings/
+
+# Maven
+**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Mac
+.DS_Store
+
+# Airflow
+airflow/logs/
+airflow.db
+airflow.cfg
+unittests.cfg
+
+# Temporary files
+/tmp/
+*.tmp
+*.swp
+*.swo
+*~

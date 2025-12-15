@@ -1,0 +1,83 @@
+{
+  "namespace": "com.platform.events",
+  "type": "record",
+  "name": "OrderEvent",
+  "doc": "Schema for order lifecycle events",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "OrderEventType",
+        "symbols": [
+          "ORDER_PLACED",
+          "ORDER_CONFIRMED",
+          "ORDER_PREPARING",
+          "ORDER_READY",
+          "ORDER_CANCELLED"
+        ]
+      },
+      "doc": "Type of order event"
+    },
+    {
+      "name": "event_timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "order_id",
+      "type": "string",
+      "doc": "Unique order identifier"
+    },
+    {
+      "name": "customer_id",
+      "type": "string",
+      "doc": "Customer identifier"
+    },
+    {
+      "name": "order_amount",
+      "type": "double",
+      "doc": "Order amount in USD"
+    },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderItem",
+          "fields": [
+            {
+              "name": "item_id",
+              "type": "string"
+            },
+            {
+              "name": "quantity",
+              "type": "int"
+            },
+            {
+              "name": "price",
+              "type": "double"
+            }
+          ]
+        }
+      },
+      "doc": "List of items in the order"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata as key-value pairs"
+    }
+  ]
+}

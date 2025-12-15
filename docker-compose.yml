@@ -1,0 +1,301 @@
+version: '3.9'
+
+services:
+  # ===== Kafka Stack =====
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - platform
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - platform
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - platform
+
+  # ===== MinIO (S3-compatible storage) =====
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    hostname: minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      MINIO_DOMAIN: minio
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # MinIO Client - creates buckets on startup
+  minio-init:
+    image: minio/mc:RELEASE.2024-01-16T16-06-34Z
+    container_name: minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 admin password;
+      /usr/bin/mc mb myminio/warehouse --ignore-existing;
+      /usr/bin/mc mb myminio/flink-checkpoints --ignore-existing;
+      /usr/bin/mc mb myminio/flink-savepoints --ignore-existing;
+      exit 0;
+      "
+    networks:
+      - platform
+
+  # ===== Trino (Query Engine) =====
+  trino:
+    image: trinodb/trino:436
+    hostname: trino
+    container_name: trino
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/configs/trino/catalog:/etc/trino/catalog
+      - ./docker/configs/trino/config.properties:/etc/trino/config.properties
+    networks:
+      - platform
+    depends_on:
+      - minio
+
+  # ===== Flink Job Manager =====
+  flink-jobmanager:
+    image: flink:1.18.0-scala_2.12-java11
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager
+    ports:
+      - "8082:8081"
+    command: jobmanager
+    environment:
+      - FLINK_PROPERTIES=jobmanager.rpc.address: flink-jobmanager
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_PATH_STYLE_ACCESS=true
+    volumes:
+      - ./flink:/opt/flink/usrlib
+    networks:
+      - platform
+    depends_on:
+      - kafka
+      - minio
+
+  # ===== Flink Task Manager =====
+  flink-taskmanager:
+    image: flink:1.18.0-scala_2.12-java11
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      - FLINK_PROPERTIES=jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT=http://minio:9000
+      - S3_PATH_STYLE_ACCESS=true
+    volumes:
+      - ./flink:/opt/flink/usrlib
+    networks:
+      - platform
+
+  # ===== Airflow (for backfills) =====
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+
+  airflow-init:
+    image: apache/airflow:2.8.0-python3.11
+    container_name: airflow-init
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create -r Admin -u airflow -e airflow@example.com -f Admin -l User -p airflow || true
+    networks:
+      - platform
+
+  airflow-webserver:
+    image: apache/airflow:2.8.0-python3.11
+    container_name: airflow-webserver
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'airflow-secret-key'
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - airflow-logs:/opt/airflow/logs
+    ports:
+      - "8083:8080"
+    command: webserver
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    image: apache/airflow:2.8.0-python3.11
+    container_name: airflow-scheduler
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/plugins:/opt/airflow/plugins
+      - airflow-logs:/opt/airflow/logs
+    command: scheduler
+    networks:
+      - platform
+
+  # ===== Prometheus (Metrics Collection) =====
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    hostname: prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - platform
+
+  # ===== Grafana (Visualization) =====
+  grafana:
+    image: grafana/grafana:10.2.3
+    hostname: grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: ''
+    volumes:
+      - ./docker/configs/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./docker/configs/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    networks:
+      - platform
+    depends_on:
+      - prometheus
+
+volumes:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+  minio-data:
+  postgres-data:
+  airflow-logs:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  platform:
+    driver: bridge

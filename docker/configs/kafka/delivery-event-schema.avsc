@@ -1,0 +1,96 @@
+{
+  "namespace": "com.platform.events",
+  "type": "record",
+  "name": "DeliveryEvent",
+  "doc": "Schema for delivery status events",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "DeliveryEventType",
+        "symbols": [
+          "DELIVERY_ASSIGNED",
+          "DELIVERY_PICKED_UP",
+          "DELIVERY_IN_TRANSIT",
+          "DELIVERY_ARRIVED",
+          "DELIVERY_COMPLETED",
+          "DELIVERY_FAILED"
+        ]
+      },
+      "doc": "Type of delivery event"
+    },
+    {
+      "name": "event_timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "delivery_id",
+      "type": "string",
+      "doc": "Unique delivery identifier"
+    },
+    {
+      "name": "order_id",
+      "type": "string",
+      "doc": "Associated order identifier"
+    },
+    {
+      "name": "driver_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Driver identifier (null if not assigned)"
+    },
+    {
+      "name": "location",
+      "type": {
+        "type": "record",
+        "name": "Location",
+        "fields": [
+          {
+            "name": "latitude",
+            "type": "double"
+          },
+          {
+            "name": "longitude",
+            "type": "double"
+          },
+          {
+            "name": "address",
+            "type": ["null", "string"],
+            "default": null
+          }
+        ]
+      },
+      "doc": "Current location coordinates"
+    },
+    {
+      "name": "estimated_arrival",
+      "type": ["null", "long"],
+      "default": null,
+      "logicalType": "timestamp-millis",
+      "doc": "Estimated arrival time in milliseconds since epoch"
+    },
+    {
+      "name": "failure_reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for delivery failure (if applicable)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata as key-value pairs"
+    }
+  ]
+}
