@@ -315,4 +315,24 @@ This project demonstrates proficiency in:
 - **Python**: Clean code, testing, type hints, project structure
 - **Documentation**: Technical writing, architecture diagrams, runbooks
 
+---
 
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the data engineering community**
+
+[⬆ Back to top](#-real-time-order--delivery-event-platform)
+
+</div>
