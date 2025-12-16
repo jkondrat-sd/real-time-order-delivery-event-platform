@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Simple event generator that can send JSON order events to Kafka (Redpanda) or print them to stdout (dry-run)."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import random
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
-
-ORDER_EVENT_TYPES: List[str] = [
+ORDER_EVENT_TYPES: list[str] = [
     "created",
     "paid",
     "packed",
@@ -29,14 +29,16 @@ RETURNED_LIFECYCLE = ["created", "paid", "packed", "shipped", "delivered", "retu
 INCOMPLETE_LIFECYCLE = ["created", "paid"]  # customer never completes
 
 
-def make_event(order_id: str, event_type: str, base_ts: datetime, delay_seconds: int = 0) -> Dict[str, Any]:
+def make_event(
+    order_id: str, event_type: str, base_ts: datetime, delay_seconds: int = 0
+) -> dict[str, Any]:
     """Create a single order event dict with realistic metadata."""
     ts = base_ts + timedelta(seconds=delay_seconds)
-    metadata: Dict[str, Any] = {
+    metadata: dict[str, Any] = {
         "region": random.choice(["US-EAST", "US-WEST", "EU", "ASIA"]),
         "warehouse_id": f"WH-{random.randint(1, 10):03d}",
     }
-    
+
     # Add event-specific metadata
     if event_type == "created":
         metadata["total_amount"] = round(random.uniform(10.0, 500.0), 2)
@@ -45,8 +47,10 @@ def make_event(order_id: str, event_type: str, base_ts: datetime, delay_seconds:
         metadata["delivery_time_minutes"] = delay_seconds // 60
         metadata["on_time"] = delay_seconds < 7200  # 2 hours SLA
     elif event_type == "returned":
-        metadata["return_reason"] = random.choice(["damaged", "wrong_item", "not_needed", "defective"])
-    
+        metadata["return_reason"] = random.choice(
+            ["damaged", "wrong_item", "not_needed", "defective"]
+        )
+
     return {
         "order_id": order_id,
         "event_type": event_type,
@@ -55,7 +59,12 @@ def make_event(order_id: str, event_type: str, base_ts: datetime, delay_seconds:
     }
 
 
-def generate_events(n: int, duplicate_rate: float = 0.02, out_of_order_rate: float = 0.05, late_delivery_rate: float = 0.1) -> List[Dict[str, Any]]:
+def generate_events(
+    n: int,
+    duplicate_rate: float = 0.02,
+    out_of_order_rate: float = 0.05,
+    late_delivery_rate: float = 0.1,
+) -> list[dict[str, Any]]:
     """Generate a list of order events with realistic patterns and edge cases.
 
     Each order follows a lifecycle pattern. Returns a flattened list with:
@@ -68,13 +77,14 @@ def generate_events(n: int, duplicate_rate: float = 0.02, out_of_order_rate: flo
     - Out-of-order events
     """
     from datetime import timezone
+
     base_time = datetime.now(timezone.utc).replace(tzinfo=None)
-    events: List[Dict[str, Any]] = []
-    
+    events: list[dict[str, Any]] = []
+
     for i in range(n):
         oid = str(uuid4())
         ts = base_time + timedelta(minutes=i)
-        
+
         # Choose lifecycle pattern
         rand = random.random()
         if rand < 0.7:  # 70% normal orders
@@ -119,14 +129,16 @@ def generate_events(n: int, duplicate_rate: float = 0.02, out_of_order_rate: flo
     return events
 
 
-def _send_to_kafka(events: List[Dict[str, Any]], topic: str, brokers: str) -> None:
+def _send_to_kafka(events: list[dict[str, Any]], topic: str, brokers: str) -> None:
     # import kafka lazily to keep dry-run simple; kafka might not be available in all environments
     try:
         from kafka import KafkaProducer  # type: ignore
     except Exception as exc:  # pragma: no cover - environmental
         raise RuntimeError("kafka-python is required to publish events") from exc
 
-    producer = KafkaProducer(bootstrap_servers=[brokers], value_serializer=lambda v: json.dumps(v).encode("utf-8"))
+    producer = KafkaProducer(
+        bootstrap_servers=[brokers], value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
     for e in events:
         producer.send(topic, e)
     producer.flush()

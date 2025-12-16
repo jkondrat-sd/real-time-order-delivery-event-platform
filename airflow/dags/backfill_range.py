@@ -18,7 +18,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-from airflow import DAG
+from airflow.models import DAG
 
 # Default args for all tasks
 default_args = {

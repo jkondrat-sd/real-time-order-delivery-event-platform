@@ -18,7 +18,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.utils.dates import days_ago
 
-from airflow import DAG
+from airflow.models import DAG
 
 default_args = {
     "owner": "data-engineering",
