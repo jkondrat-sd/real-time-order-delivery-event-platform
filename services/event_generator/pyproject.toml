@@ -1,0 +1,10 @@
+[project]
+name = "event-generator"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[project.dependencies]
+kafka-python = "^2.0.2"
+
+[tool.pytest.ini_options]
+addopts = "-q"

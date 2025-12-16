@@ -1,0 +1,137 @@
+# Alertmanager Configuration for Real-Time Order Delivery Platform
+
+global:
+  # Global SMTP configuration (configure for your environment)
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@example.com'
+  smtp_auth_username: 'alertmanager@example.com'
+  smtp_auth_password: 'your-password'
+  
+  # Slack webhook URL (configure for your environment)
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+
+  # PagerDuty service key (configure for your environment)
+  # pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# Route tree
+route:
+  # Default receiver
+  receiver: 'default-receiver'
+  
+  # Group alerts by these labels
+  group_by: ['alertname', 'severity', 'team']
+  
+  # Wait before sending first notification for a group
+  group_wait: 30s
+  
+  # Wait before sending updated notification for a group
+  group_interval: 5m
+  
+  # Wait before resending a notification
+  repeat_interval: 4h
+  
+  # Child routes
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+      routes:
+        # Fulfillment team critical alerts
+        - match:
+            team: fulfillment
+          receiver: 'fulfillment-critical'
+        # Logistics team critical alerts
+        - match:
+            team: logistics
+          receiver: 'logistics-critical'
+        # Platform team critical alerts
+        - match:
+            team: platform
+          receiver: 'platform-critical'
+    
+    # Warning alerts - grouped notifications
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 2m
+      repeat_interval: 4h
+      routes:
+        - match:
+            team: fulfillment
+          receiver: 'fulfillment-warning'
+        - match:
+            team: logistics
+          receiver: 'logistics-warning'
+
+# Inhibition rules - suppress lower severity alerts when higher severity fires
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'team']
+
+# Receivers configuration
+receivers:
+  - name: 'default-receiver'
+    # Webhook for demo/testing - logs to console
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    # Multiple channels for critical alerts
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+    # slack_configs:
+    #   - channel: '#alerts-critical'
+    #     send_resolved: true
+    #     title: '{{ .Status | toUpper }}: {{ .CommonAnnotations.summary }}'
+    #     text: '{{ .CommonAnnotations.description }}'
+
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+
+  - name: 'fulfillment-critical'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+    # slack_configs:
+    #   - channel: '#fulfillment-oncall'
+    #     send_resolved: true
+
+  - name: 'fulfillment-warning'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+
+  - name: 'logistics-critical'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+    # slack_configs:
+    #   - channel: '#logistics-oncall'
+    #     send_resolved: true
+
+  - name: 'logistics-warning'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+
+  - name: 'platform-critical'
+    webhook_configs:
+      - url: 'http://host.docker.internal:5001/webhook'
+        send_resolved: true
+    # pagerduty_configs:
+    #   - service_key: 'your-pagerduty-service-key'
+    #     send_resolved: true
+
+# Templates (optional - customize notification format)
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

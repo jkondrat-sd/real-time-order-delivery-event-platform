@@ -1,0 +1,69 @@
+[project]
+name = "real-time-order-delivery-event-platform"
+version = "1.0.0"
+description = "Production-grade streaming data platform: Kafka → Flink → Iceberg → Trino with full observability"
+authors = [{ name = "Data Engineering Portfolio", email = "portfolio@example.com" }]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["streaming", "flink", "iceberg", "kafka", "data-engineering", "lakehouse"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "kafka-python>=2.0.2",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/real-time-order-delivery-event-platform"
+Documentation = "https://github.com/yourusername/real-time-order-delivery-event-platform#readme"
+Repository = "https://github.com/yourusername/real-time-order-delivery-event-platform"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501", "W291", "W293"]  # Allow long lines and trailing whitespace for now
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+follow_imports = "silent"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-v --tb=short"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["services", "flink"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

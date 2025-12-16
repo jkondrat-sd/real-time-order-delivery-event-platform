@@ -1,0 +1,18 @@
+name: rtod-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - kafka-python
+    - apache-flink==1.16.3
+    - pytest
+    - mypy
+    - types-python-dateutil
+  - ruff
+  - mypy
+
+# Optional developer tools you may want to install globally:
+# - pre-commit
+# - ipython

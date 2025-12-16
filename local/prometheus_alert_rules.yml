@@ -1,0 +1,183 @@
+# Prometheus Alert Rules for Real-Time Order Delivery Platform
+# These rules detect abnormal patterns in the alert rate and system metrics
+
+groups:
+  - name: order_delivery_alerts
+    interval: 30s
+    rules:
+      # Alert Rate Monitoring
+      - alert: HighPaidNotShippedAlertRate
+        expr: |
+          sum(rate(flink_taskmanager_job_task_operator_numRecordsOut{
+            task_name=~".*paid_not_shipped.*"
+          }[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: fulfillment
+        annotations:
+          summary: "High rate of paid-but-not-shipped alerts"
+          description: |
+            The rate of orders that are paid but not shipped within 2 hours 
+            is abnormally high ({{ $value | printf "%.2f" }} alerts/sec).
+            This may indicate warehouse processing delays or fulfillment system issues.
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#high-paid-not-shipped-rate"
+
+      - alert: CriticalPaidNotShippedAlertRate
+        expr: |
+          sum(rate(flink_taskmanager_job_task_operator_numRecordsOut{
+            task_name=~".*paid_not_shipped.*"
+          }[5m])) > 50
+        for: 2m
+        labels:
+          severity: critical
+          team: fulfillment
+        annotations:
+          summary: "CRITICAL: Very high rate of paid-but-not-shipped alerts"
+          description: |
+            URGENT: Paid orders are not being shipped at an alarming rate
+            ({{ $value | printf "%.2f" }} alerts/sec). 
+            Immediate investigation required!
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#critical-fulfillment-delay"
+
+      - alert: HighShippedNotDeliveredAlertRate
+        expr: |
+          sum(rate(flink_taskmanager_job_task_operator_numRecordsOut{
+            task_name=~".*shipped_not_delivered.*"
+          }[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: logistics
+        annotations:
+          summary: "High rate of shipped-but-not-delivered alerts"
+          description: |
+            The rate of orders that are shipped but not delivered within 5 days
+            is abnormally high ({{ $value | printf "%.2f" }} alerts/sec).
+            This may indicate carrier issues or delivery delays in specific regions.
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#high-delivery-delay-rate"
+
+      - alert: CriticalShippedNotDeliveredAlertRate
+        expr: |
+          sum(rate(flink_taskmanager_job_task_operator_numRecordsOut{
+            task_name=~".*shipped_not_delivered.*"
+          }[5m])) > 25
+        for: 5m
+        labels:
+          severity: critical
+          team: logistics
+        annotations:
+          summary: "CRITICAL: Very high rate of delivery delay alerts"
+          description: |
+            URGENT: Shipped orders are not being delivered at an alarming rate
+            ({{ $value | printf "%.2f" }} alerts/sec).
+            Check carrier status and regional logistics immediately!
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#critical-delivery-delay"
+
+      # Regional Alert Concentration
+      - alert: RegionalAlertConcentration
+        expr: |
+          (
+            sum by(region) (rate(flink_taskmanager_job_task_operator_numRecordsOut{
+              task_name=~".*alert.*"
+            }[15m]))
+            /
+            sum(rate(flink_taskmanager_job_task_operator_numRecordsOut{
+              task_name=~".*alert.*"
+            }[15m]))
+          ) > 0.6
+        for: 10m
+        labels:
+          severity: warning
+          team: regional-ops
+        annotations:
+          summary: "Alert concentration in region {{ $labels.region }}"
+          description: |
+            More than 60% of all alerts are coming from region {{ $labels.region }}.
+            This suggests a localized issue with fulfillment or delivery.
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#regional-concentration"
+
+      # Flink Job Health
+      - alert: AlertDetectorJobDown
+        expr: |
+          absent(flink_jobmanager_job_uptime{job_name="alert_detector"}) 
+          or flink_jobmanager_job_uptime{job_name="alert_detector"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Alert detector Flink job is not running"
+          description: |
+            The alert_detector PyFlink job is not running or has crashed.
+            No SLA violation alerts are being generated!
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#job-down"
+
+      - alert: AlertDetectorLag
+        expr: |
+          flink_taskmanager_job_task_operator_currentInputWatermark{
+            task_name=~".*alert.*"
+          } < (time() * 1000 - 300000)
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Alert detector is lagging behind"
+          description: |
+            The alert detector job watermark is more than 5 minutes behind.
+            Alerts may be delayed or missing.
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#job-lag"
+
+      # Kafka Topic Health
+      - alert: AlertsTopicConsumerLag
+        expr: |
+          kafka_consumergroup_lag{topic="alerts.events"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Consumer lag on alerts.events topic"
+          description: |
+            Consumers of the alerts.events topic are lagging behind
+            by {{ $value }} messages. Alert processing may be delayed.
+          runbook_url: "https://github.com/yourorg/real-time-order-delivery-event-platform/blob/main/docs/runbooks/alerts_runbook.md#kafka-lag"
+
+  - name: system_health
+    interval: 30s
+    rules:
+      - alert: FlinkJobManagerDown
+        expr: up{job="flink"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Flink JobManager is down"
+          description: "The Flink JobManager is not reachable. All streaming jobs may be affected."
+
+      - alert: HighTaskManagerMemory
+        expr: |
+          flink_taskmanager_Status_JVM_Memory_Heap_Used 
+          / flink_taskmanager_Status_JVM_Memory_Heap_Max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Flink TaskManager memory usage > 90%"
+          description: "TaskManager heap memory is critically high. Consider scaling or optimizing jobs."
+
+      - alert: CheckpointFailures
+        expr: |
+          increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Multiple Flink checkpoint failures"
+          description: |
+            {{ $value }} checkpoint failures in the last 5 minutes.
+            Data durability may be at risk.
