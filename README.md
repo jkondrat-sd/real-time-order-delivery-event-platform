@@ -314,3 +314,5 @@ This project demonstrates proficiency in:
 - **Observability**: Metrics, logging, alerting, runbooks
 - **Python**: Clean code, testing, type hints, project structure
 - **Documentation**: Technical writing, architecture diagrams, runbooks
+
+
