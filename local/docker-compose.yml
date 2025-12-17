@@ -1,7 +1,7 @@
 services:
   redpanda:
     # Allow overriding the image via env var (useful if Docker Hub requires auth)
-    image: ${REDPANDA_IMAGE:-vectorized/redpanda:latest}
+    image: ${REDPANDA_IMAGE:-docker.redpanda.com/redpandadata/redpanda:v23.3.3}
     command:
       - redpanda
       - start
