@@ -188,16 +188,27 @@ jobs:
         run: |
           echo "Querying Iceberg tables..."
           
-          # Query bronze table
-          BRONZE_COUNT=$(docker exec local-trino-1 trino --execute "SELECT COUNT(*) FROM iceberg.lakehouse.bronze_order_events" 2>/dev/null | grep -o '[0-9]*' | head -1 || echo "0")
+          # Query bronze table with better error handling
+          QUERY_OUTPUT=$(docker exec local-trino-1 trino --execute "SELECT COUNT(*) FROM iceberg.lakehouse.bronze_order_events" 2>&1 || true)
+          echo "Query output: $QUERY_OUTPUT"
+          
+          # Extract numeric count, default to 0 if not found
+          BRONZE_COUNT=$(echo "$QUERY_OUTPUT" | grep -oE '[0-9]+' | head -1 || echo "0")
+          
+          # Ensure BRONZE_COUNT is set to 0 if empty
+          if [ -z "$BRONZE_COUNT" ]; then
+            BRONZE_COUNT=0
+          fi
+          
           echo "Bronze table count: $BRONZE_COUNT"
           
           # Verify count > 0
-          if [ "$BRONZE_COUNT" -gt "0" ]; then
+          if [ "$BRONZE_COUNT" -gt 0 ]; then
             echo "✓ Integration test PASSED: Found $BRONZE_COUNT events in bronze table"
             echo "bronze_count=$BRONZE_COUNT" >> $GITHUB_OUTPUT
           else
             echo "✗ Integration test FAILED: No events in bronze table"
+            echo "Query output was: $QUERY_OUTPUT"
             exit 1
           fi
 
