@@ -10,7 +10,7 @@ Uses Flink Table API (SQL) for simpler window aggregation.
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 
-def main():
+def main() -> None:
     # Create Table environment
     env_settings = EnvironmentSettings.in_streaming_mode()
     table_env = TableEnvironment.create(env_settings)

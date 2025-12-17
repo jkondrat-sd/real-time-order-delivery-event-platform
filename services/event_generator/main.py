@@ -132,7 +132,7 @@ def generate_events(
 def _send_to_kafka(events: list[dict[str, Any]], topic: str, brokers: str) -> None:
     # import kafka lazily to keep dry-run simple; kafka might not be available in all environments
     try:
-        from kafka import KafkaProducer  # type: ignore
+        from kafka import KafkaProducer
     except Exception as exc:  # pragma: no cover - environmental
         raise RuntimeError("kafka-python is required to publish events") from exc
 

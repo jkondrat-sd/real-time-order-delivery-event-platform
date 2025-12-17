@@ -8,7 +8,7 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 
-def main():
+def main() -> None:
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
 

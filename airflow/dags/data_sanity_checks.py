@@ -13,12 +13,12 @@ Alerts are sent via Airflow callbacks when checks fail.
 
 import json
 from datetime import datetime, timedelta
+from typing import Any
 
+from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.utils.dates import days_ago
-
-from airflow.models import DAG
 
 default_args = {
     "owner": "data-engineering",
@@ -39,7 +39,7 @@ THRESHOLDS = {
 }
 
 
-def check_row_counts(**context):
+def check_row_counts(**context: Any) -> dict[str, Any]:
     """Check row counts across all lakehouse tables."""
     execution_date = context["execution_date"].strftime("%Y-%m-%d")
 
@@ -78,7 +78,7 @@ def check_row_counts(**context):
     return results
 
 
-def check_data_freshness(**context):
+def check_data_freshness(**context: Any) -> dict[str, Any]:
     """Check that data is fresh (not stale)."""
     freshness_query = """
     SELECT 
@@ -117,7 +117,7 @@ def check_data_freshness(**context):
     return results
 
 
-def check_null_rates(**context):
+def check_null_rates(**context: Any) -> dict[str, Any]:
     """Check null rates for critical columns."""
     null_checks = {
         "bronze_order_events": {
@@ -159,7 +159,7 @@ def check_null_rates(**context):
     return results
 
 
-def check_duplicates(**context):
+def check_duplicates(**context: Any) -> dict[str, Any]:
     """Check for duplicate records."""
     duplicate_checks = {
         "bronze_duplicate_events": """
@@ -186,7 +186,7 @@ def check_duplicates(**context):
     return results
 
 
-def check_referential_integrity(**context):
+def check_referential_integrity(**context: Any) -> dict[str, Any]:
     """Check that silver table only contains orders from bronze."""
     integrity_query = """
     SELECT COUNT(*) as orphan_count
@@ -207,7 +207,7 @@ def check_referential_integrity(**context):
     return results
 
 
-def evaluate_all_checks(**context):
+def evaluate_all_checks(**context: Any) -> str:
     """Evaluate all check results and decide next step."""
     ti = context["ti"]
 
@@ -267,7 +267,7 @@ def evaluate_all_checks(**context):
         return "report_failure"
 
 
-def report_success(**context):
+def report_success(**context: Any) -> None:
     """Report successful checks."""
     execution_date = context["execution_date"].strftime("%Y-%m-%d %H:%M")
     print(f"""
@@ -292,7 +292,7 @@ def report_success(**context):
     """)
 
 
-def report_failure(**context):
+def report_failure(**context: Any) -> None:
     """Report failed checks."""
     ti = context["ti"]
     failures = json.loads(ti.xcom_pull(key="failures", task_ids="evaluate_checks") or "[]")

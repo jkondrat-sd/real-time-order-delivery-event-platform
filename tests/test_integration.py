@@ -181,7 +181,7 @@ def run_sample_queries() -> bool:
     return True
 
 
-def main():
+def main() -> int:
     """Run full integration test"""
     print("=" * 60)
     print("🚀 Real-Time Order Delivery Platform - Integration Test")

@@ -1,10 +1,11 @@
 from datetime import datetime
+from typing import Any
 
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 
 
-def backfill_task(start, end, **kwargs):
+def backfill_task(start: str, end: str, **kwargs: Any) -> None:
     print(f"Would backfill from {start} to {end}")
 
 

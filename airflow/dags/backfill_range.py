@@ -13,12 +13,12 @@ Usage:
 
 import json
 from datetime import datetime, timedelta
+from typing import Any
 
+from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-
-from airflow.models import DAG
 
 # Default args for all tasks
 default_args = {
@@ -31,7 +31,7 @@ default_args = {
 }
 
 
-def validate_date_range(**context):
+def validate_date_range(**context: Any) -> dict[str, str]:
     """Validate the date range parameters."""
     dag_run = context.get("dag_run")
     conf = dag_run.conf if dag_run else {}
@@ -60,7 +60,7 @@ def validate_date_range(**context):
     return {"start_date": start_date, "end_date": end_date}
 
 
-def query_source_data(**context):
+def query_source_data(**context: Any) -> str:
     """Query source data from Iceberg bronze table for the date range."""
     ti = context["ti"]
     start_date = ti.xcom_pull(key="start_date", task_ids="validate_dates")
@@ -86,7 +86,7 @@ def query_source_data(**context):
     return query
 
 
-def compute_gold_aggregates(**context):
+def compute_gold_aggregates(**context: Any) -> str:
     """Recompute gold layer aggregates for the backfill window."""
     ti = context["ti"]
     start_date = ti.xcom_pull(key="start_date", task_ids="validate_dates")
@@ -127,7 +127,7 @@ def compute_gold_aggregates(**context):
     return agg_query
 
 
-def validate_backfill_results(**context):
+def validate_backfill_results(**context: Any) -> dict[str, str]:
     """Validate the backfill completed successfully."""
     ti = context["ti"]
     start_date = ti.xcom_pull(key="start_date", task_ids="validate_dates")
@@ -147,7 +147,7 @@ def validate_backfill_results(**context):
     return validation_checks
 
 
-def swap_tables(**context):
+def swap_tables(**context: Any) -> bool:
     """Swap backfill table with production table (atomic operation)."""
     print("Swapping backfill table with production...")
 
